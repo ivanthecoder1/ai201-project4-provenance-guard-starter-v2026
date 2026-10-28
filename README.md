@@ -122,13 +122,20 @@
      diagnostics. -->
 
 ```bash
-$ curl -X POST http://127.0.0.1:5000/submit \
-  -H "Content-Type: application/json" \
-  -d '{"text": "...", "creator_id": "..."}'
+$ curl.exe -X POST http://127.0.0.1:5000/submit -H "Content-Type: application/json" -d '{"text": "The library opened at nine, and by ten the reading room was already full of students.", "creator_id": "ivan"}'
 ```
 
 ```json
-
+{
+  "appeal": "Think we got this wrong? POST /appeal with this content_id.",
+  "confidence": null,
+  "content_id": "de2fefef-5f24-4bcf-b0e1-6d853f528509",
+  "guess": "unsure",
+  "label": "placeholder — label not built yet",
+  "model_score": 0.5482,
+  "status": "decided",
+  "style_score": null
+}
 ```
 
 **An appeal**
@@ -146,11 +153,26 @@ $ curl -X POST http://127.0.0.1:5000/appeal \
 **What the log shows afterwards**
 
 ```bash
-$ curl "http://127.0.0.1:5000/log?limit=3"
+$ curl.exe "http://127.0.0.1:5000/log?limit=5"
 ```
 
 ```json
-
+{
+  "count": 1,
+  "entries": [
+    {
+      "combined_score": null,
+      "content_id": "de2fefef-5f24-4bcf-b0e1-6d853f528509",
+      "creator_id": "ivan",
+      "guess": "unsure",
+      "label": "placeholder — label not built yet",
+      "model_score": 0.5482,
+      "status": "decided",
+      "style_score": null,
+      "timestamp": "2026-10-28T23:10:51+00:00"
+    }
+  ]
+}
 ```
 
 ---

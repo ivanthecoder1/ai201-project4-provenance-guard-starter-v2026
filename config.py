@@ -47,6 +47,15 @@ DETECTOR_MODEL = os.getenv("AI201_DETECTOR_MODEL", "gpt2")
 DETECTOR_MAX_TOKENS = 400
 
 
+# ─── Input limits (Milestone 3) ──────────────────────────────────────────────
+# From the /submit contract in TRACE.md and criterion 5. Under the minimum,
+# neither signal has enough text to mean anything; over the maximum, the
+# request is refused before any model runs.
+
+MIN_TEXT_CHARS = 50
+MAX_TEXT_CHARS = 20_000
+
+
 # ─── Scoring (Milestone 4) ───────────────────────────────────────────────────
 # How much each signal counts toward the combined score.
 #
