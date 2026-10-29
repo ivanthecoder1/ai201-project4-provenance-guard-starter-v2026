@@ -39,7 +39,21 @@
 <!-- The path a submission takes, from arriving to the label a reader sees.
      Six or seven steps — this is the trace you wrote in Milestone 1. -->
 
+Provenance Guard guesses whether a piece of writing is AI-generated, and lets
+the writer appeal.
 
+1. **`POST /submit`** receives `text` and `creator_id`.
+2. **Input check** (`app.py::submit`) rejects bad requests before any model
+   runs: non-object body or missing field (400), text under 50 characters
+   (400) or over 20,000 (413). Rejections are logged.
+3. **`content_id`** (`uuid.uuid4()`) links the decision, log and any appeal.
+4. **Signal one** (`detector.py::model_signal`): how predictable gpt2 finds
+   the text, 0–1.
+5. **Signal two** (`stylometry.py::style_signal`): the text's shape, 0–1.
+6. **Combine and label** (`scoring.py`): one `confidence` score, then a guess
+   (`ai` / `human` / `unsure`) and the sentence a reader sees.
+7. **Log, then respond** (`audit.py::log_decision`). The writer can send the
+   `content_id` to `POST /appeal` to move the item to `under_review`.
 
 ---
 
@@ -53,28 +67,68 @@
 
 ### Signal one — the model signal
 
-**What it measures:**
+**What it measures:** Predictability: gpt2's perplexity on the first 400
+tokens, mapped to 0–1 by `1 / (1 + (perplexity / 45) ^ 1.6)`. Lower
+perplexity = higher AI score.
 
-**Why that might differ between human and AI writing:**
+**Why that might differ between human and AI writing:** Models write by
+picking likely next words; people make odder choices.
 
-**What it can't see:**
+**What it can't see:** Predictable isn't machine-written. Plain or formal
+human writing scores as AI: the Gettysburg Address scored **0.73**, above my
+AI samples. AI text with rare words scores as human. Nothing past 400 tokens
+is read.
 
 ### Signal two — the style signal
 
-**What it measures:**
+**What it measures:** The text's shape, via three measures:
 
-**Why that might differ between human and AI writing:**
+| Measure | Computed as | AI when | Weight |
+|---|---|---|---|
+| Sentence-length spread | stdev ÷ mean of words per sentence | low | 0.50 |
+| Type-token ratio | unique ÷ total words, per 50-word window | high | 0.35 |
+| Punctuation density | `, ; : — – ( ) " …` per word | low | 0.15 |
 
-**What it can't see:**
+Each is scaled to 0–1 between a human value and an AI value (spread
+0.65 → 0.25, TTR 0.70 → 0.90, punctuation 0.10 → 0.04), then weighted. With
+fewer than 2 sentences or 50 words, that measure counts as 0.5.
+
+**Why that might differ between human and AI writing:** AI prose tends toward
+even sentence lengths; human writing is lumpier. On my five calibration texts,
+spread separated the groups, punctuation barely did, and type-token ratio ran
+*opposite* to the starter's hint (AI used more varied words), so high TTR
+counts as AI. Five texts is a first guess, not a measurement.
+
+**What it can't see:** Meaning. Splitting sentences, typos, synonyms or extra
+dashes all move it. Poems, lists and short posts break it.
+
+**Why they're two different signals:** One asks "would a model say this?",
+the other "does it look like model output?". Typos fool only the style
+signal; rare words fool only the model. Plain human writing can fool both.
 
 ### The combining rule
 
 <!-- Write the rule in words, then give the numbers. What happens when the two
      signals disagree? -->
 
-**The rule:**
+**The rule:** Average the two signals equally. If either one is below 0.5
+(leans human), cap the result at 0.69, so a disagreement can be "unsure" but
+never "AI". The human label isn't capped, because only a wrong AI label
+accuses someone.
 
 **The numbers:**
+
+| Setting | Value | Where |
+|---|---|---|
+| Weights (model / style) | 0.5 / 0.5 | `config.WEIGHT_MODEL_SIGNAL`, `WEIGHT_STYLE_SIGNAL` |
+| Cap applies when a signal is below | 0.5 | `config.DISAGREE_BELOW` |
+| Cap | 0.69 (`AI_THRESHOLD - 0.01`) | `scoring.py::combine_signals` |
+| Human / unsure / AI | < 0.35 / 0.35–0.70 / ≥ 0.70 | `config.HUMAN_THRESHOLD`, `AI_THRESHOLD` |
+
+Equal weights because neither signal has earned more trust. The AI line moves
+up from 0.65 to 0.70 because that's the label that costs a person something.
+The cost: lightly edited AI (0.68) lands in "unsure", and a writer who fools
+*both* signals still gets labeled AI.
 
 **Where it lives:** `scoring.py::combine_signals`
 
@@ -83,6 +137,9 @@
 
 **A case where my two signals split, and what my rule does with it:**
 
+The Gettysburg Address: **0.73** model (reads as AI), **0.45** style (leans
+human). It averages to 0.59, "unsure", and because style is under 0.5 the cap
+would hold it at 0.69 or below even if the model scored it higher. Never "AI".
 
 
 ---
