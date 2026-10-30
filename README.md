@@ -330,17 +330,61 @@ $ curl.exe "http://127.0.0.1:5000/log?limit=5"
 
 ## How I Used AI
 
-**Moment 1**
+**Moment 1 — the Milestone 5 functions**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* Fill in `scoring.py::score_to_label`, wire it into the
+  `/submit` response, and build `app.py::appeal`. I gave it the three label
+  phrasings I wanted and left the code to it.
 
-**Moment 2**
+- *What came back:* More than I asked for, and it flagged why before writing
+  anything. Two things I had missed:
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+  1. `/submit` was still at Milestone 3 — it never called `style_signal` or
+     `combine_signals`, so there was no combined score for `score_to_label`
+     to read. Milestone 5 was not reachable without finishing Milestone 4's
+     wiring first, so it did both.
+  2. My README already described a combining rule the code didn't have: the
+     0.69 disagreement cap, `config.DISAGREE_BELOW`, and an `AI_THRESHOLD`
+     of 0.70 while `config.py` still said 0.65. I had written the rule down
+     and never implemented it. It built the code to match what I'd claimed.
+
+  On `/appeal` it added two things I hadn't specified: taking `creator_id`
+  off the original log entry instead of trusting whatever the request body
+  says, and returning a 404 with a logged rejection for an unknown
+  `content_id` rather than failing silently.
+
+- *What I changed:* 
+  I took the extra scope once I'd read the reason for it, but not the
+  numbers on trust. `scoring.label_ranges()` prints 0.00–0.35 / 0.35–0.70 /
+  0.70–1.00 with no gap, and a deliberate 0.99 model / 0.45 style split came
+  back as 0.69 "unsure" rather than "ai" — so the cap I'd described in the
+  README does bite. Then I submitted three real texts and got one of each
+  label, which is the evidence in Label Variants above.
+
+**Moment 2 — the label wording**
+
+- *What I asked for:* I wrote the three labels myself as short phrases —
+  "Probably written by a human", "Probably written by an ai", "Could be
+  written by an ai or human" — and asked for them as full sentences for
+  someone who has never heard the word "threshold".
+
+- *What came back:* It kept my three meanings and made each a sentence, then
+  added two things I hadn't asked for and argued for both. The unsure label
+  got "This is not a finding against you — our check simply wasn't able to
+  decide", on the reasoning that the wording should name *our* failure rather
+  than a property of the writing: "this text has AI-like qualities" sounds
+  like a soft accusation the reader has to disprove, while "we could not
+  tell" is the true thing and is nobody's fault. The AI and unsure labels
+  both got an appeal line; the human one didn't, because nobody needs to
+  contest being believed.
+
+- *What I changed:* 
+**One thing I didn't let it change:** my Signals and Scoring section claims
+the Gettysburg Address scores 0.73 model / 0.45 style. Re-run on an excerpt it
+came out 0.7109 / 0.4787 — the combined 0.59 and the "unsure" conclusion hold
+either way. It flagged the gap and left my numbers alone rather than
+overwriting a measurement I took with one taken on different input, which was
+the right call: I don't know which text it used.
 
 <!-- ═══════════════════════ UNIT 8 — THE TEST ═══════════════════════ -->
 
