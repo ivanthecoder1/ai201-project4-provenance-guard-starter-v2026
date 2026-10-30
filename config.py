@@ -66,6 +66,14 @@ MAX_TEXT_CHARS = 20_000
 WEIGHT_MODEL_SIGNAL = 0.5
 WEIGHT_STYLE_SIGNAL = 0.5
 
+# When the two signals disagree, the combined score gets capped below the AI
+# line. A signal under this value counts as "leans human", and one signal
+# leaning human is enough to trigger the cap in `scoring.combine_signals`.
+#
+# Only the AI label is capped. A wrong human label costs nobody anything; a
+# wrong AI label accuses a person.
+DISAGREE_BELOW = 0.5
+
 
 # ─── Thresholds (Milestone 5) ────────────────────────────────────────────────
 # Where one label becomes another. Scores run 0.0 (confidently human) to 1.0
@@ -81,7 +89,7 @@ WEIGHT_STYLE_SIGNAL = 0.5
 # that decide who pays for it.
 
 HUMAN_THRESHOLD = 0.35
-AI_THRESHOLD = 0.65
+AI_THRESHOLD = 0.70
 
 # ⚠️ One thing that catches people out in Milestone 5. A weighted average can
 # only land between its two inputs — so while `style_signal` is still the stub

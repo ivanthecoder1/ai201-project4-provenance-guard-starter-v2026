@@ -31,6 +31,8 @@ from flask import Flask, jsonify, request
 import audit
 import config
 import detector
+import scoring
+import stylometry
 
 app = Flask(__name__)
 
@@ -225,12 +227,12 @@ def submit():
                        text_length=len(text))
 
     content_id = str(uuid.uuid4())
-    model_score = round(detector.model_signal(text), 4)
 
-    # Milestone 3: one real signal. style_score, confidence and the label are
-    # placeholders until Milestones 4 and 5.
-    guess = "unsure"
-    label = "placeholder — label not built yet"
+    # Both signals point the same way: higher means more likely AI.
+    model_score = round(detector.model_signal(text), 4)
+    style_score = round(stylometry.style_signal(text), 4)
+    combined_score = round(scoring.combine_signals(model_score, style_score), 4)
+    guess, label = scoring.score_to_label(combined_score)
 
     # Log before answering, so no label is ever shown that the log doesn't know about.
     audit.log_decision(
@@ -238,6 +240,8 @@ def submit():
         creator_id=creator_id,
         guess=guess,
         model_score=model_score,
+        style_score=style_score,
+        combined_score=combined_score,
         label=label,
         status="decided",
     )
@@ -245,10 +249,12 @@ def submit():
     return jsonify({
         "content_id": content_id,
         "guess": guess,
-        "confidence": None,
+        "confidence": combined_score,
         "label": label,
+        # Both signal scores go in the response, not just the log — unit 8's
+        # run_attacks.py and run_eval.py read them straight off here.
         "model_score": model_score,
-        "style_score": None,
+        "style_score": style_score,
         "status": "decided",
         "appeal": "Think we got this wrong? POST /appeal with this content_id.",
     })
@@ -280,14 +286,56 @@ def appeal():
     to the person on the other end. It's the only thing standing between a
     wrong accusation and nothing at all.
     """
-    payload = request.get_json(silent=True) or {}
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return _reject("unknown", 400, "invalid_json",
+                       "Send a JSON object with \"content_id\" and \"reasoning\".")
 
-    # TODO: delete this and build the route.
+    content_id = payload.get("content_id")
+    reasoning = payload.get("reasoning")
+    if not isinstance(content_id, str) or not content_id.strip():
+        return _reject("unknown", 400, "missing_field",
+                       "\"content_id\" is required and must be a non-empty string.")
+    if not isinstance(reasoning, str) or not reasoning.strip():
+        return _reject("unknown", 400, "missing_field",
+                       "\"reasoning\" is required and must be a non-empty string. "
+                       "Tell us why you think we got this wrong.")
+
+    content_id = content_id.strip()
+    reasoning = reasoning.strip()
+
+    # A typo in the content_id fails silently if you skip this, and the route
+    # looks broken when it isn't.
+    history = audit.entries_for(content_id)
+    if not history:
+        return _reject("unknown", 404, "unknown_content_id",
+                       f"No decision found for content_id \"{content_id}\". "
+                       "Check the id from your /submit response.",
+                       content_id=content_id)
+
+    # The appeal belongs to whoever submitted the thing, not to whoever sent
+    # this request — take the creator off the original decision.
+    decision = history[0]
+    creator_id = decision.get("creator_id", "unknown")
+
+    # Append-only: the original decision stays where it is and the appeal
+    # lands after it, which moves the item to under_review.
+    audit.log_appeal(
+        content_id=content_id,
+        creator_id=creator_id,
+        reasoning=reasoning,
+    )
+
     return jsonify({
-        "error": "not_implemented",
-        "message": "POST /appeal isn't built yet — see the TODO in app.py.",
-        "you_sent": payload,
-    }), 501
+        "content_id": content_id,
+        "creator_id": creator_id,
+        "status": "under_review",
+        "original_guess": decision.get("guess"),
+        "original_label": decision.get("label"),
+        "message": "Thanks — your appeal is recorded and this is now under review. "
+                   "A person will look at it. Nothing has been re-scored "
+                   "automatically.",
+    })
 
 
 # ── Already works ─────────────────────────────────────────────────────────────

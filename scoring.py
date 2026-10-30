@@ -51,12 +51,33 @@ def combine_signals(model_score: float, style_score: float) -> float:
 
     The weights in config.py are placeholders. Change them, or ignore them and
     write a different rule.
+
+    Mine: average the two equally, then cap. If EITHER signal is below
+    `config.DISAGREE_BELOW` (0.5 — that signal leans human), hold the result
+    one step under `config.AI_THRESHOLD`, so a disagreement can land in
+    "unsure" but can never produce an AI label.
+
+    Equal weights because neither signal has earned more trust than the other.
+    The cap is one-sided on purpose: a wrong human label costs nobody
+    anything, a wrong AI label accuses a person. So only the AI side is held
+    back, and the human side is left uncapped.
+
+    What it costs: lightly-edited AI that trips one signal and not the other
+    comes out "unsure" rather than "AI", and text that fools BOTH signals is
+    labelled AI with nothing standing in the way.
     """
-    # TODO: replace this
-    return (
+    combined = (
         config.WEIGHT_MODEL_SIGNAL * model_score
         + config.WEIGHT_STYLE_SIGNAL * style_score
     )
+
+    signals_disagree = (
+        model_score < config.DISAGREE_BELOW or style_score < config.DISAGREE_BELOW
+    )
+    if signals_disagree:
+        combined = min(combined, config.AI_THRESHOLD - 0.01)
+
+    return combined
 
 
 def score_to_label(score: float) -> tuple[str, str]:
@@ -84,13 +105,31 @@ def score_to_label(score: float) -> tuple[str, str]:
     written every word themselves. Your breakout asks your group what they'd
     think if they got it on their own work. That question is the whole
     milestone.
+
+    Mine: three sentences, no numbers in any of them. The reader gets a plain
+    statement of what we think and nothing that looks like a verdict.
+
+    The "unsure" one says "we could not tell" rather than anything about the
+    writing itself, because the person reading it may well have written every
+    word. Saying the text "has some AI-like qualities" sounds like a soft
+    accusation; saying we could not tell puts the failure on us, which is
+    where it belongs.
     """
-    # TODO: replace this — thresholds are in config.py
     if score >= config.AI_THRESHOLD:
-        return "ai", "PLACEHOLDER — write the high-confidence AI label."
-    if score <= config.HUMAN_THRESHOLD:
-        return "human", "PLACEHOLDER — write the high-confidence human label."
-    return "unsure", "PLACEHOLDER — write the unsure label."
+        return "ai", (
+            "We think this was probably written by an AI tool. "
+            "If that's wrong, you can appeal and a person will look at it."
+        )
+    if score < config.HUMAN_THRESHOLD:
+        return "human", (
+            "We think this was probably written by a person. "
+            "Nothing further is needed."
+        )
+    return "unsure", (
+        "We could not tell whether this was written by a person or by an AI "
+        "tool. This is not a finding against you — our check simply wasn't "
+        "able to decide. You can appeal if you'd like a person to look at it."
+    )
 
 
 def label_ranges() -> list[tuple[str, str]]:
