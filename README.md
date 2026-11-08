@@ -546,19 +546,271 @@ them can't help when both signals are wrong the same way.
 
 <!-- Your five criteria across three trials. `run_eval.py --label before`. -->
 
+Produced by `run_eval.py::main` (criteria 1, 2, 3, 5; inputs in `scenarios.py`)
+and `run_appeals.py::main` (criterion 4, which needs a submission before it can
+appeal, so `run_eval.py` can't test it). Raw output:
+`results/run_2026-11-08_1708_before.md` and
+`results/appeals_2026-11-08_1708_before.md`.
+
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |
+| 1. My own writing labeled AI | ≤ 1 of 10 | 1/10 | 1/10 | 1/10 | MET |
+| 2. AI avg − human avg confidence | ≥ 0.20 | 0.41 | 0.41 | 0.41 | MET |
+| 3. All three labels returned | 3 of 3 | 3/3 | 3/3 | 3/3 | MET |
+| 4. Appeals recorded / unknown ids 404 | 10/10 + 3/3 | 10/10 + 3/3 | 10/10 + 3/3 | 10/10 + 3/3 | MET |
+| 5. Bad input rejected, no decision logged | 10 of 10 | 10/10 | 10/10 | 10/10 | MET |
+
+All three trials were identical, number for number. Neither signal is random,
+so that's expected.
+
+How I decided each one:
+1. **MET, at the limit.** Piece 2 ("Can I please get some assistance with this
+   story? This is my first time doing QA work") was labeled AI at 0.74 in every
+   trial; nothing else was. One more and it's a miss.
+2. **MET.** AI samples averaged 0.83, human samples 0.42: a gap of 0.41.
+3. **MET.** AI, human and unsure came back for the three inputs aimed at them,
+   every trial. `scoring.label_ranges()` gives human 0.00–0.35, unsure
+   0.35–0.70, AI 0.70–1.00 (`score_to_label` uses `< 0.35` and `>= 0.70`, so
+   no gaps or overlaps).
+4. **MET.** Every real appeal returned 200 `under_review` and appeared in
+   `GET /log` with the reasoning word for word; every unknown id got a 404 and
+   no appeal entry.
+5. **MET.** 8 × 400 and 2 × 413 each trial; the log holds 30 `rejected`
+   entries for these creator_ids and 0 decisions.
 
 **Real output from one trial**, pasted as text, naming the file and function
 that produced it:
 
-```json
+Criterion 1, trial 1 (`run_eval.py::main` → `app.py::submit`):
 
+```json
+[
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6088,
+    "model_score": 0.3925,
+    "style_score": 0.825,
+    "label": "We could not tell whether this was written by a person or by an AI tool. This is not a finding against you — our check simply wasn't able to decide. You can appeal if you'd like a person to look at it.",
+    "sent": "Thanks for sending over the details for the Software Engineer role at "
+  },
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.7364,
+    "model_score": 0.6477,
+    "style_score": 0.825,
+    "label": "We think this was probably written by an AI tool. If that's wrong, you can appeal and a person will look at it.",
+    "sent": "Can I please get some assistance with this story? This is my first tim"
+  },
+  {
+    "status": 200,
+    "guess": "human",
+    "confidence": 0.3352,
+    "model_score": 0.0954,
+    "style_score": 0.575,
+    "label": "We think this was probably written by a person. Nothing further is needed.",
+    "sent": "I am writing to follow up on the service request I submitted on 6/11/2"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.3809,
+    "model_score": 0.2136,
+    "style_score": 0.5482,
+    "label": "We could not tell whether this was written by a person or by an AI tool. This is not a finding against you — our check simply wasn't able to decide. You can appeal if you'd like a person to look at it.",
+    "sent": "mochie is so cutee. She is rolling on the floor right now"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6247,
+    "model_score": 0.6744,
+    "style_score": 0.575,
+    "label": "We could not tell whether this was written by a person or by an AI tool. This is not a finding against you — our check simply wasn't able to decide. You can appeal if you'd like a person to look at it.",
+    "sent": "Thank you for getting back to me about this opportunity"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.612,
+    "model_score": 0.7661,
+    "style_score": 0.4579,
+    "label": "We could not tell whether this was written by a person or by an AI tool. This is not a finding against you — our check simply wasn't able to decide. You can appeal if you'd like a person to look at it.",
+    "sent": "This is great, thank you! I did end up picking up the folder in place "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5096,
+    "model_score": 0.2503,
+    "style_score": 0.7688,
+    "label": "We could not tell whether this was written by a person or by an AI tool. This is not a finding against you — our check simply wasn't able to decide. You can appeal if you'd like a person to look at it.",
+    "sent": "yo, do you wanna play some matches of pokemon? I need to rank up to ma"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.3664,
+    "model_score": 0.4079,
+    "style_score": 0.325,
+    "label": "We could not tell whether this was written by a person or by an AI tool. This is not a finding against you — our check simply wasn't able to decide. You can appeal if you'd like a person to look at it.",
+    "sent": "May I please get approval for this report? Thank you!"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5598,
+    "model_score": 0.5447,
+    "style_score": 0.575,
+    "label": "We could not tell whether this was written by a person or by an AI tool. This is not a finding against you — our check simply wasn't able to decide. You can appeal if you'd like a person to look at it.",
+    "sent": "I can't make it to the lunch today because I have a conflict"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6702,
+    "model_score": 0.5624,
+    "style_score": 0.7779,
+    "label": "We could not tell whether this was written by a person or by an AI tool. This is not a finding against you — our check simply wasn't able to decide. You can appeal if you'd like a person to look at it.",
+    "sent": "i am ready to go home, i feel so tired. I wanna go sleep in my bed"
+  }
+]
+```
+
+Criterion 2, trial 1, confidences only (full JSON in the results file):
+
+```json
+{
+  "ai_samples": [
+    0.8496,
+    0.8463,
+    0.8343,
+    0.8186,
+    0.8093
+  ],
+  "human_samples": [
+    0.4358,
+    0.2783,
+    0.3852,
+    0.5281,
+    0.4637
+  ]
+}
+```
+
+Criterion 3, trial 1 (`run_eval.py::main` → `app.py::submit`):
+
+```json
+[
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.7529,
+    "model_score": 0.7052,
+    "style_score": 0.8005,
+    "sent": "Reading offers numerous benefits that extend far beyond simple enterta"
+  },
+  {
+    "status": 200,
+    "guess": "human",
+    "confidence": 0.2617,
+    "model_score": 0.461,
+    "style_score": 0.0624,
+    "sent": "You don't know about me without you have read a book by the name of Th"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5872,
+    "model_score": 0.7273,
+    "style_score": 0.4472,
+    "sent": "Four score and seven years ago our fathers brought forth on this conti"
+  }
+]
+```
+
+Criterion 4, trial 1, first real appeal and first unknown id
+(`run_appeals.py::main` → `app.py::appeal`):
+
+```json
+[
+  {
+    "kind": "real",
+    "content_id": "e31c0ec7-da02-437a-9c1a-6b00140ac853",
+    "submit_status": 200,
+    "status": 200,
+    "response": {
+      "content_id": "e31c0ec7-da02-437a-9c1a-6b00140ac853",
+      "creator_id": "appeal_t1_1",
+      "message": "Thanks — your appeal is recorded and this is now under review. A person will look at it. Nothing has been re-scored automatically.",
+      "original_guess": "unsure",
+      "original_label": "We could not tell whether this was written by a person or by an AI tool. This is not a finding against you — our check simply wasn't able to decide. You can appeal if you'd like a person to look at it.",
+      "status": "under_review"
+    },
+    "reasoning": "Trial 1, appeal 1: I wrote this myself and can show my drafts.",
+    "passed": true,
+    "appeal_entries_in_log": 1
+  },
+  {
+    "kind": "unknown",
+    "content_id": "never-submitted-dc623c12-475c-4b89-a407-abcc753e5a65",
+    "status": 404,
+    "response": {
+      "error": "unknown_content_id",
+      "message": "No decision found for content_id \"never-submitted-dc623c12-475c-4b89-a407-abcc753e5a65\". Check the id from your /submit response."
+    },
+    "passed": true,
+    "appeal_entries_in_log": 0
+  }
+]
+```
+
+Criterion 5, trial 1, status codes (`run_eval.py::main` → `app.py::submit`):
+
+```json
+[
+  {
+    "sent": "{\"creator_id\": \"eval_bad_missing_1\"}",
+    "status": 400
+  },
+  {
+    "sent": "{\"creator_id\": \"eval_bad_missing_2\"}",
+    "status": 400
+  },
+  {
+    "sent": "{\"text\": 12345, \"creator_id\": \"eval_bad_notstr_1\"}",
+    "status": 400
+  },
+  {
+    "sent": "{\"text\": [\"not\", \"a\", \"string\"], \"creator_id\": \"eval_bad_not",
+    "status": 400
+  },
+  {
+    "sent": "(empty text)",
+    "status": 400
+  },
+  {
+    "sent": "   \n\t  ",
+    "status": 400
+  },
+  {
+    "sent": "Too short to judge.",
+    "status": 400
+  },
+  {
+    "sent": "  Also short, even with padding.   ",
+    "status": 400
+  },
+  {
+    "sent": "word word word word word word word word word word word word ",
+    "status": 413
+  },
+  {
+    "sent": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "status": 413
+  }
+]
 ```
 
 **Diagnoses**
