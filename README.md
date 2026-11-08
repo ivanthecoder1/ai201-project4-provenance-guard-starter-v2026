@@ -829,7 +829,96 @@ Criterion 5, trial 1, status codes (`run_eval.py::main` → `app.py::submit`):
 
      Look for a pattern. Five failures on one signal is one problem, not five. -->
 
+**No criterion missed, so there are no criterion diagnoses.** The 17 broken
+attacks come down to five patterns. Style measures below are from
+`stylometry.py`, computed on the attack text.
 
+**Pattern A: plain human writing reads as AI on *both* signals (4 attacks:
+FP02, FP03, FP04, FP05).** Formal report, non-native writer, rubric essay,
+documentation: all labeled AI at 0.71–0.78.
+- *Stage:* signal two and signal one together, with the combining rule unable
+  to help.
+- *Mechanism:* signal two scores these as AI on two measures. Their sentences
+  are even (spread 0.24–0.37, near my AI end of 0.25), and they have almost no
+  mid-sentence punctuation (0.00–0.03 per word). My punctuation scale treats
+  anything below 0.04 as fully AI. But my AI calibration samples had *more*
+  punctuation (0.05–0.08) than these human texts, so this part of the scale has
+  no evidence behind it. Signal one finds the plain vocabulary predictable
+  (0.74–0.83). Both signals are above 0.5, so the disagreement cap never fires,
+  and the average clears 0.70.
+- The same thing nearly sank criterion 1: my piece 2 ("Can I please get some
+  assistance...") scored style 0.83 (spread 0.08, punctuation 0.00) and model
+  0.65, giving 0.74 and an AI label. This is the false positive I traced in
+  Milestone 1, and the worst outcome of the run.
+
+**Pattern B: text with no words gets a confident AI label (3 attacks: MF05,
+MF06, MF07).** 4,000 a's, emoji, and right-to-left script all scored
+0.74–0.79.
+- *Stage:* the route, then signal two.
+- *Mechanism:* the route checks *characters* (at least 50), not words, so these
+  get through. `stylometry.words()` only matches `[a-z0-9']`, so it finds 0
+  words in emoji or Arabic script and 1 in the a's. Spread and word variety
+  fall back to 0.5, but `punctuation_density` returns 0.0 for zero words,
+  which my scale reads as fully AI. That's why the style signal is exactly
+  0.575 on all three. Signal one finds repeated tokens extremely predictable
+  (0.91–1.00). Neither signal is below 0.5, so no cap.
+
+**Pattern C: reshaped AI text slides into "unsure" (4 attacks: EV02, EV06,
+EV07, EV10).** The text changes shape but keeps the same words.
+- *Stage:* signal two, then the combining rule.
+- *Mechanism:* each attack moves a measure signal two counts as human. In EV02,
+  the inserted "Really." sentences push spread to 0.85. EV06's one long and one
+  short sentence push spread to 1.19. EV10's repeated stanza drops word
+  variety to 0.50, which my reversed direction counts as human. EV07's
+  semicolons merge everything into one sentence (spread falls back to neutral)
+  and raise punctuation to 0.22. Style lands at 0.41–0.50. In EV02, EV06 and
+  EV10 that is under 0.5, so the cap holds the score at 0.69 or below even
+  when the model says 0.98 (EV10). This is the trade I chose in the previous
+  unit: when the signals disagree, unsure rather than an accusation.
+
+**Pattern D: added text confuses signal one (4 attacks: EV01, EV08, PI01,
+PI02).**
+- *Stage:* signal one.
+- *Mechanism:* gpt2 scores how predictable the whole text is. Typos (EV01),
+  a 10-word text (EV08) and an injected instruction line (PI01's "ignore all
+  previous instructions", PI02's fake "SYSTEM:" header) are all unusual token
+  sequences. They raise perplexity and drop the model score to 0.16–0.46.
+  Nothing in my service follows instructions; the injection worked only
+  because it is odd text. In EV01, signal two actually scored the text *more*
+  AI (1.00): typos raise word variety, and I set high variety to count as AI.
+  The model dropped below 0.5, so the cap held the result at "unsure". In
+  PI02, both signals fell below 0.5 (the short instruction lines also raised
+  spread), so it was labeled human.
+
+**Pattern E: near misses on the threshold (2 attacks: EV03, EV05).**
+- *EV03* (pasted quotation) scored 0.6915, 0.0085 under the AI line. *Stage:*
+  the label mapping. The quotation lowered the model score a little (0.67),
+  enough to miss 0.70.
+- *EV05* (heavy human editing) scored 0.35, labeled human. *Stage:* both
+  signals. This one may not be a detector failure: the editing pass changed the
+  actual words and sentence shapes, so the text is now substantially
+  human-written.
+
+**The pattern across all of them.** A and B are the costly ones: 7 attacks
+that ended in a confident wrong AI label, all caused by signal two leaning AI
+when it has no real evidence, and by the cap only covering disagreement. C, D
+and E are AI text getting through as "unsure" or "human". That's the cheaper
+mistake, and mostly the trade my combining rule chose on purpose.
+
+**All five criteria were met, so were my targets too low?** Partly.
+- **Criterion 2 was too easy.** The gap was 0.41 against a target of 0.20,
+  and four of the five human samples still came back "unsure", not "human".
+  An average gap hides that. "Every human sample scores below every AI sample"
+  would have been a real test. This is the criterion I'd tighten.
+- **Criterion 1 passed, but its test was weaker than the attack set.** My 10
+  pieces are mostly 10–30 words, so signal two had little to measure. The
+  attack set's longer plain human writing was labeled AI 4 times out of 8. It
+  passed at exactly the limit (1 of 10), with the same mechanism as Pattern A.
+- **Criteria 4 and 5 test code paths, not judgment.** They were never likely to
+  fail, and they didn't.
+
+No criterion turned out unmeasurable, so I haven't revised any in
+`criteria.md`.
 
 ---
 
