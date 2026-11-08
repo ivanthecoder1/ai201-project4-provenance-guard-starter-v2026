@@ -924,22 +924,129 @@ No criterion turned out unmeasurable, so I haven't revised any in
 
 ## The Improvement
 
-**What I changed:**
+**What I changed:** one thing, the punctuation measure inside signal two
+(`stylometry.py::style_signal`, new constant `PUNCT_LOW_RAMP`). Before, any
+punctuation density below 0.04 counted as fully AI. Now the scale has two sides:
+it peaks at 0.04 and falls to fully *human* at 0.00. Above 0.04 nothing
+changed. The weights, thresholds, cap and labels are all the same.
 
-**Which diagnosis pointed at it:**
+**Which diagnosis pointed at it:** Pattern A. The human texts labeled AI had
+0.00–0.03 punctuation per word, and every AI sample I've measured had at least
+0.045. So "almost no commas" was never evidence of AI; in my data it's evidence
+of a person. I simulated four options on the logged scores before choosing:
+treating low punctuation as "no evidence" fixed less, and dropping punctuation
+to "human" everywhere fixed more accusations but also let 2 more AI texts
+(EV09, PI03) through. The two-sided scale was the only one that fixed
+accusations without letting new AI text through.
 
 ### Attack Run — After
 
 <!-- Same format. `run_attacks.py --label after` -->
 
+`results/attack_run_2026-11-08_1719_after.md`, marked with the same rule as the
+before run. **40 held, 16 broke** (before: 39 held, 17 broke).
 
+| Family | Before held / broke | After held / broke |
+|---|---|---|
+| evasion | 2 / 8 | 2 / 8 |
+| false_positive | 4 / 4 | **5 / 3** |
+| prompt_injection | 4 / 2 | 4 / 2 |
+| malformed | 17 / 3 | 17 / 3 |
+| flood_same_creator | 12 / 0 | 12 / 0 |
+| **Total** | **39 / 17** | **40 / 16** |
 
-**Did it help, and how do I know:**
+| ID | Targeting | Status | Guess | Model | Style | Combined | Verdict | vs before |
+|---|---|---|---|---|---|---|---|---|
+| EV01 | signal two: typos raise word variety | 200 | unsure | 0.16 | 0.98 | 0.57 | **BROKE** | same |
+| EV02 | signal two: broken-up sentences raise length spread | 200 | unsure | 0.59 | 0.46 | 0.53 | **BROKE** | same |
+| EV03 | signal two: a pasted quotation changes the shape | 200 | unsure | 0.67 | 0.72 | 0.69 | **BROKE** | same |
+| EV04 | signal one: unusual words raise perplexity | 200 | ai | 0.61 | 0.98 | 0.80 | **HELD** | same |
+| EV05 | both signals: heavy human editing pass | 200 | human | 0.32 | 0.38 | 0.35 | **BROKE** | same |
+| EV06 | signal two: one very long sentence and one very short | 200 | unsure | 0.57 | 0.38 | 0.48 | **BROKE** | same |
+| EV07 | signal two: padding with punctuation | 200 | unsure | 0.59 | 0.50 | 0.55 | **BROKE** | same |
+| EV08 | signal one: text below the token window | 200 | unsure | 0.25 | 0.63 | 0.44 | **BROKE** | same |
+| EV09 | both: AI text with a human opening paragraph bolted on | 200 | ai | 0.70 | 0.72 | 0.71 | **HELD** | same |
+| EV10 | signal two: repeated stanza structure | 200 | unsure | 0.98 | 0.32 | 0.65 | **BROKE** | same |
+| FP01 | plain, clear human writing with no flourishes | 200 | unsure | 0.62 | 0.50 | 0.56 | **HELD** | same |
+| FP02 | human writing in a formal register | 200 | ai | 0.74 | 0.67 | 0.70 | **BROKE** | same |
+| FP03 | a non-native English speaker writing carefully | 200 | ai | 0.81 | 0.61 | 0.71 | **BROKE** | same |
+| FP04 | a student essay written to a rubric | 200 | ai | 0.83 | 0.62 | 0.73 | **BROKE** | same |
+| FP05 | technical documentation written by a person | 200 | unsure | 0.80 | 0.57 | 0.69 | **HELD** | was ai 0.71 BROKE |
+| FP06 | a person imitating a formal template | 200 | unsure | 0.88 | 0.32 | 0.60 | **HELD** | same |
+| FP07 | human writing that repeats a phrase deliberately | 200 | unsure | 0.88 | 0.13 | 0.50 | **HELD** | same |
+| FP08 | very short genuine human submission | 400 | — | — | — | — | **HELD** | same |
+| PI01 | instruction to ignore the check | 200 | human | 0.46 | 0.17 | 0.32 | **BROKE** | was unsure 0.39 BROKE |
+| PI02 | instruction disguised as a system message | 200 | human | 0.20 | 0.31 | 0.26 | **BROKE** | same |
+| PI03 | instruction wrapped in the writer's voice | 200 | ai | 0.59 | 0.85 | 0.72 | **HELD** | same |
+| PI04 | attempt to make the label text hostile | 200 | unsure | 0.50 | 0.65 | 0.57 | **HELD** | same |
+| PI05 | attempt to inject into the audit log | 200 | unsure | 0.64 | 0.40 | 0.52 | **HELD** | same |
+| PI06 | instruction plus real human text | 200 | unsure | 0.56 | 0.52 | 0.54 | **HELD** | same |
+| MF01 | text is only whitespace | 400 | — | — | — | — | **HELD** | same |
+| MF02 | text is a single character | 400 | — | — | — | — | **HELD** | same |
+| MF03 | text is control characters | 400 | — | — | — | — | **HELD** | same |
+| MF04 | text is only punctuation | 400 | — | — | — | — | **HELD** | same |
+| MF05 | text is a very long single word | 200 | unsure | 1.00 | 0.42 | 0.69 | **BROKE** | was ai 0.79 BROKE |
+| MF06 | text is emoji only | 200 | unsure | 1.00 | 0.42 | 0.69 | **BROKE** | was ai 0.79 BROKE |
+| MF07 | text is right-to-left script | 200 | unsure | 0.91 | 0.42 | 0.67 | **BROKE** | was ai 0.74 BROKE |
+| MF08 | text is 60,000 characters | 413 | — | — | — | — | **HELD** | same |
+| RQ01 | no text field at all | 400 | — | — | — | — | **HELD** | same |
+| RQ02 | no creator_id | 400 | — | — | — | — | **HELD** | same |
+| RQ03 | text is a number | 400 | — | — | — | — | **HELD** | same |
+| RQ04 | text is a list | 400 | — | — | — | — | **HELD** | same |
+| RQ05 | text is null | 400 | — | — | — | — | **HELD** | same |
+| RQ06 | creator_id is an object | 400 | — | — | — | — | **HELD** | same |
+| RQ07 | body is a JSON array, not an object | 400 | — | — | — | — | **HELD** | same |
+| RQ08 | body is unparseable JSON | 400 | — | — | — | — | **HELD** | same |
+| RQ09 | body is empty | 400 | — | — | — | — | **HELD** | same |
+| RQ10 | body is form-encoded, not JSON | 429 | — | — | — | — | **HELD** | same |
+| RQ11 | body is JSON claiming to be plain text | 429 | — | — | — | — | **HELD** | same |
+| RQ12 | deeply nested JSON | 400 | — | — | — | — | **HELD** | same |
+| FL01_01 | 20 rapid submissions from one creator | 200 | human | — | — | 0.23 | **HELD** | same |
+| FL01_02 | 20 rapid submissions from one creator | 200 | human | — | — | 0.23 | **HELD** | same |
+| FL01_03 | 20 rapid submissions from one creator | 200 | human | — | — | 0.23 | **HELD** | same |
+| FL01_04 | 20 rapid submissions from one creator | 200 | human | — | — | 0.23 | **HELD** | same |
+| FL01_05 | 20 rapid submissions from one creator | 200 | human | — | — | 0.23 | **HELD** | same |
+| FL01_06 | 20 rapid submissions from one creator | 429 | — | — | — | — | **HELD** | same |
+| FL01_07 | 20 rapid submissions from one creator | 429 | — | — | — | — | **HELD** | same |
+| FL01_08 | 20 rapid submissions from one creator | 429 | — | — | — | — | **HELD** | same |
+| FL01_09 | 20 rapid submissions from one creator | 429 | — | — | — | — | **HELD** | same |
+| FL01_10 | 20 rapid submissions from one creator | 429 | — | — | — | — | **HELD** | same |
+| FL01_11 | 20 rapid submissions from one creator | 429 | — | — | — | — | **HELD** | same |
+| FL01_12 | 20 rapid submissions from one creator | 429 | — | — | — | — | **HELD** | same |
 
-<!-- Widening the unsure band usually fixes one problem and creates another.
-     Reporting that trade honestly is worth full credit. -->
+**My five criteria, after** (`results/run_2026-11-08_1719_after.md`,
+`results/appeals_2026-11-08_1719_after.md`):
 
+| Criterion | Target | Before (×3) | Run 1 | Run 2 | Run 3 | Verdict |
+|---|---|---|---|---|---|---|
+| 1. My own writing labeled AI | ≤ 1 of 10 | 1/10 | 0/10 | 0/10 | 0/10 | MET |
+| 2. AI avg − human avg confidence | ≥ 0.20 | 0.41 | 0.41 | 0.41 | 0.41 | MET |
+| 3. All three labels returned | 3 of 3 | 3/3 | 3/3 | 3/3 | 3/3 | MET |
+| 4. Appeals recorded / unknown ids 404 | 10/10 + 3/3 | 10/10 + 3/3 | 10/10 + 3/3 | 10/10 + 3/3 | 10/10 + 3/3 | MET |
+| 5. Bad input rejected, no decision logged | 10 of 10 | 10/10 | 10/10 | 10/10 | 10/10 | MET |
 
+**Did it help, and how do I know:** Partly. It fixed 1 of the 4 accused
+writers in the attack set, and it took criterion 1 from "at the limit" to
+0/10.
+- **Helped:** FP05 (technical documentation) went from AI 0.71 to unsure 0.69.
+  My piece 2 went from AI 0.74 to unsure, and three of my pieces moved to
+  "human". As a side effect, MF05–07 (junk text) went from confident AI to
+  unsure, because their zero-word punctuation reading now points human. They
+  still count as BROKE, because the service scored them instead of refusing
+  them.
+- **Didn't help enough:** FP02, FP03 and FP04 are still labeled AI, now at
+  0.71–0.73 instead of 0.76–0.78. Their sentence spread is also near my AI end,
+  and the model scores them 0.74–0.83. Punctuation only carries 0.15 of signal
+  two, so it can move them about 0.04–0.08 and no further. FP03, the worst
+  outcome, is still an accusation.
+- **The cost:** PI01 (AI text with an injected instruction) went from unsure to
+  *human*: its AI sentences are followed by an instruction line with no
+  commas, so it got the same push toward human. No AI text that was caught
+  before slipped through, and the AI samples in criterion 2 didn't move
+  (they all have more than 0.04 punctuation).
+- **How I know it was this change:** it was the only change. Everything that
+  moved was a text with punctuation below 0.04; every text above 0.04 scored
+  exactly the same as before.
 
 ---
 

@@ -43,6 +43,10 @@ MID_SENTENCE_PUNCTUATION = re.compile(r"\.\.\.|--|[,;:—–()\"“”]")
 SPREAD_RAMP = (0.65, 0.25)
 TTR_RAMP = (0.70, 0.90)
 PUNCT_RAMP = (0.10, 0.04)
+# Unit 8 improvement: below the AI range, less punctuation looks MORE human.
+# Every AI sample measured had at least 0.045; the human writing wrongly
+# labeled AI in the attack run had 0.00–0.03. See README, The Improvement.
+PUNCT_LOW_RAMP = (0.00, 0.04)
 
 # How much each measure counts inside the style signal. Spread separated the
 # calibration samples best, punctuation worst.
@@ -171,8 +175,10 @@ def style_signal(text: str) -> float:
       ttr      HIGH = AI — the opposite of the hint above. AI samples used
                varied vocabulary (0.88–0.95); the human ones repeated
                themselves (0.73–0.76).
-      punct    low = AI, weakly. Barely separated the samples, so it gets
-               the smallest weight.
+      punct    AI around 0.04 per word, weakly. Barely separated the
+               samples, so it gets the smallest weight. Unit 8: below 0.04
+               it now slopes back toward human (PUNCT_LOW_RAMP), because
+               human writing with almost no commas was being labeled AI.
 
     Short text breaks two measures, so each counts as 0.5 (no evidence either
     way) when it has too little to go on: one sentence has no spread at all,
@@ -187,7 +193,8 @@ def style_signal(text: str) -> float:
         ttr_ai = 0.5
     else:
         ttr_ai = _ramp(type_token_ratio(text), *TTR_RAMP)
-    punct_ai = _ramp(punctuation_density(text), *PUNCT_RAMP)
+    density = punctuation_density(text)
+    punct_ai = min(_ramp(density, *PUNCT_LOW_RAMP), _ramp(density, *PUNCT_RAMP))
 
     return (WEIGHT_SPREAD * spread_ai
             + WEIGHT_TTR * ttr_ai
