@@ -109,10 +109,15 @@ AI_THRESHOLD = 0.70
 # an hour, and a script sending a thousand variations to map your thresholds.
 # Your README has to say why your numbers and not others.
 
-RATE_LIMITING_ENABLED = os.getenv("AI201_RATE_LIMITS", "0") == "1"
+RATE_LIMITING_ENABLED = True
 
-RATE_LIMIT_PER_MINUTE = 10
-RATE_LIMIT_PER_DAY = 200
+# Per creator_id (app.py::rate_limit_key falls back to the caller's address).
+# A writer posting and re-posting a draft rarely sends more than a couple in a
+# minute, so 5 leaves room for retries. 50 a day is more pieces than any one
+# person writes, and it turns "map my thresholds with 1,000 variations" into
+# 20 days of work for one creator_id. See README, Rate Limiting.
+RATE_LIMIT_PER_MINUTE = 5
+RATE_LIMIT_PER_DAY = 50
 
 # Flask-Limiter warns loudly without this. In-memory is right for one laptop
 # and wrong for anything real — a restart forgets every count, and two copies

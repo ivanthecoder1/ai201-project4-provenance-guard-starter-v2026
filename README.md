@@ -392,24 +392,38 @@ the right call: I don't know which text it used.
 
 ## Rate Limiting
 
-**My limits:** ___ per minute, ___ per day
+**My limits:** 5 per minute, 50 per day (`config.py`, applied to
+`POST /submit` only)
 
 **Why those numbers and not others:**
-<!-- Think about two people: a real writer submitting their own work a few
-     times an hour, and a script sending a thousand variations to map your
-     thresholds. Your numbers have to be liveable for the first and hostile to
-     the second. -->
+- **5 a minute:** a real writer submits a piece, maybe fixes a typo and
+  resubmits. That's two or three in a minute at most, so 5 leaves room for
+  retries. A script mapping my thresholds wants hundreds a minute.
+- **50 a day:** more pieces than one person writes in a day. A script sending
+  1,000 variations from one `creator_id` would need 20 days.
+- **Why not lower:** at 1–2 a minute, a writer retrying after a network error
+  would hit a 429, and the writer is who this site is for.
 
-**What a caller counts as:** <!-- per address, or per creator_id? They fail
-differently — one script can look like a thousand callers, and one household
-can look like one. -->
+**What a caller counts as:** the `creator_id`, falling back to the caller's
+address when there isn't a usable one (`app.py::rate_limit_key`). The weakness:
+`creator_id` isn't verified, so a script that invents a new one per request is
+never limited. The attack set does exactly that, one `creator_id` per row.
+Limiting by address instead would catch that script, but would also lump
+everyone behind one school or office network together.
 
 **The run of status codes when I pushed past it:**
 
 <!-- python run_attacks.py --flood 15 -->
 
 ```
+200 200 200 200 200 429 429 429 429 429 429 429 429 429 429
+```
 
+10 of 15 were rate limited (`results/flood_2026-11-08_1641.md`). Each 429 is
+in the audit log:
+
+```json
+{"creator_id": "flood_tester", "event": "rejected", "limit": "5 per 1 minute", "reason": "rate_limited", "status": "rejected", "timestamp": "2026-11-08T21:41:26+00:00"}
 ```
 
 ---
