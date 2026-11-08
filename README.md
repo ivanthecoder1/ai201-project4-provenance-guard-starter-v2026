@@ -1055,12 +1055,35 @@ writers in the attack set, and it took criterion 1 from "at the limit" to
 <!-- For each attack still getting through and each criterion still missed:
      what you'd do, and why you stopped. -->
 
+No criterion is missed. 16 attacks still break. Why I stopped, for all of
+them: this unit allows one change, so the before and after stay comparable.
 
+| Still broken | What I'd do next | Why I haven't |
+|---|---|---|
+| **FP02, FP03, FP04:** plain human writing labeled AI (0.71–0.73) | Make the AI label need both signals clearly high (each ≥ 0.75), not just both above 0.5. On the after-run scores, all three fail that bar (style 0.61–0.67), so none would be accused. | Every AI text in the attack set that's still caught (EV04, EV09, PI03) would also drop to "unsure", and so would my criterion 3 AI input (model 0.71), so criterion 3 would miss. Only my five cleanest AI samples clear it. That's a big trade, and it would be a second change. |
+| **MF05, MF06, MF07:** junk text gets scored | Reject text with fewer than ~10 real words at the route (400). | It's a route change on top of the punctuation fix, and it was a separate change. It's my first fix if I get another. |
+| **EV02, EV06, EV07, EV10:** reshaped AI text lands in "unsure" | Nothing right now. | This is the cap working as I designed it: when the signals disagree, the writer gets "unsure", not an accusation. |
+| **EV01, EV08, PI01, PI02:** odd text lowers the model score | Score the text in chunks with signal one and ignore chunks that are out of place (a typo-heavy line, an injected header). | It needs a real change to `detector.py` and more test data than I have. PI01 got *worse* with my fix (unsure → human). |
+| **EV03:** 0.0085 under the AI line | Leave it. | Lowering the AI line to catch it would put FP02–FP05 back over it. |
+| **EV05:** heavily human-edited AI text labeled human | Leave it. | After that much editing, the text is substantially the person's own writing. |
+
+Two "held" results that aren't really fine: **FP08** held because a real
+writer's 36-character post was refused (400), not judged; and **RQ10–RQ11**
+never reached the route, because they had no usable `creator_id` and hit the
+per-address limit first. And as Milestone 4 found, **criterion 2's 0.20 target
+was too easy**. I'd tighten it to "every human sample scores below every AI
+sample" next time.
 
 **The trade I'd make if this ran for real:**
 
 <!-- Two sentences. Fewer wrong accusations means more AI text getting through.
      Say which way you'd go and WHO PAYS FOR IT. -->
+
+I'd go further toward fewer wrong accusations, even if more AI text gets
+through labeled "unsure". The cost of that falls on the site and its readers,
+who see some AI writing go unflagged; the other way, the cost falls on
+individual writers, often plain or second-language writers like FP03, who get
+publicly accused of cheating on their own work.
 
 
 
